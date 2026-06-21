@@ -1,14 +1,14 @@
 ---
 name: hitl-wechat-pub
 description: "Human-in-the-loop controlled WeChat auto publishing skill with manual approval workflow."
-version: 2.0.0
+version: 2.1.0
 author: 16Miku
 license: MIT
 source: https://github.com/16Miku/wechat-auto-publishing (改编自 wechat-auto-publishing-complete)
 metadata:
   hermes:
     tags: [wechat, publishing, automation, hitl, draft]
-    related_skills: [md2wechat-lite, wechat-auto-publishing]
+    related_skills: [md2wechat-lite, wechat-auto-publishing, source-gathering]
 ---
 
 # hitl-wechat-pub — Human-in-the-Loop 微信公众号发布
@@ -46,7 +46,7 @@ metadata:
 
 - `references/writing-style-js.md` — **剑识写作风格**（基于16Miku原版改编，有态度/第一人称/无编号/无CTA）
 - `references/html-formatting-pitfalls.md` — HTML排版坑点与修复方案（已内置）
-- `references/autumn-warm-design-prompt.md` — autumn-warm 🟠 设计规范
+- `references/custom-design-prompt-example.md` — custom 主题设计提示词示例（"星际富豪"风格，深空×金色）
 
 ### Templates
 
@@ -118,6 +118,8 @@ metadata:
    - 用户可要求补充采集更多资讯
 4. 用户确认后，Agent 记录确认的选题到素材池文件末尾（`## 确认选题` 段），然后才进入 Step 3
 
+**⚠️ HITL 超时处理：** 如果 `clarify` 发出后用户 **10 分钟内未回复，重新问一次**。如果再次超时，**记录确认选题为"用户未确认"并暂停流程**，不自动推进到 Step 3。HITL 节点必须有显式用户决策信号才能继续。
+
 **禁止行为：**
 - ❌ 不等用户确认就自动开始写文章
 - ❌ 自行决定主线选题跳过人工确认
@@ -133,17 +135,35 @@ metadata:
 - **确认时间**: YYYY-MM-DD HH:MM
 ```
 
-### Step 3: 撰写文章
+### Step 3: 撰写文章（关键：素材池 → 文章，显式文件传递）
 
 按**用户确认的选题**和**指定风格**撰写文章。
 
+**⚠️ 关键规则：绝不能依赖 Agent 上下文记忆中的 web_search 结果写文章。**
+所有文章内容必须源自 Step 2 产出的**素材池文件**（`step2-source-gathering-*.md`），逐条参考原文描述和 URL。
+
 **写作流程（必须按顺序执行，不可跳过）：**
 
-1. **LOAD `writing-styles` skill** — 确认该风格的定位、语调、结构、选材范围、禁忌
-2. **READ `~/styles/<风格名>.md`** — 加载具体风格文件（剑闻/剑识/洞剑/智剑/远剑），逐条对照文章结构、标题格式、语调规范
-3. **OPEN 原版 article-template.md** — 参考 `~/styles/` 下的风格文件结构
-4. **WRITE** — 严格按照风格文件的结构写，不自由发挥
-5. **SELF-CHECK** — 每段检查是否符合风格要求（见下方合规清单）
+1. **LOAD 素材池文件** — `read_file("~/wechat-publish-{abbr}/step2-source-gathering-YYYY-MM-DD.md")`，完整读出素材池中与确认选题相关的所有条目
+2. **逐条引用原文** — 对素材池中每条相关素材，`web_extract` 或直接使用素材池中保存的原文描述和 URL，确保数据准确
+3. **LOAD `writing-styles` skill** — 确认该风格的定位、语调、结构、选材范围、禁忌
+4. **READ `~/styles/<风格名>.md`** — 加载具体风格文件（剑闻/剑识/洞剑/智剑/远剑），逐条对照文章结构、标题格式、语调规范
+5. **WRITE** — 对着素材池文件和风格文件，逐段写。每段从素材池中取一条原文，用目标风格重写后输出。**每写一段，必须标注该段所引用素材的 URL 来源**
+6. **SELF-CHECK** — 每段检查是否符合风格要求（见下方合规清单）
+
+**素材池→文章映射规范：**
+```
+素材池条目           → 文章段落
+[原文标题+URL]      → ### 改写后标题（含关键数字）
+[原文描述3-5句]     → 2-4句重写（用目标语音）
+[原文URL]           → 📎 [来源名](URL)（保留在段落末尾）
+```
+
+**坑点：**
+- ❌ 不要凭记忆写数字——回素材池文件对一遍
+- ❌ 不要用 web_search 重新查——已经在 Step 2 查过了
+- ❌ 不要把素材池里不相关的条目塞进来——只写用户确认的选题
+- ✅ 如果素材池里的某条描述不够用，可以用 `web_extract(URL)` 打开原文页面获取更多细节
 
 **风格 → 结构速查：**
 
@@ -220,12 +240,7 @@ metadata:
 | **AI mode - ocean-calm** | 🔵 深蓝静谧 | 科技/金融/数据分析 |
 | **AI mode - custom** | 🎨 自定义 | 自由风格 |
 
-**工作方式：**
-1. AI mode 返回设计提示词（JSON 格式的 `action_required` 响应）
-2. 用 LLM 按提示词生成微信公众号兼容 HTML（纯内联样式）
-3. 通过 WeChat API 或 npm CLI `sync-html` 推送草稿
-
-### Step 5.6: 选择发布公众号 ⏸️ **HITL #3 — 暂停等待用户**
+**工作方式：**\n1. AI mode 返回设计提示词（JSON 格式的 `action_required` 响应）\n2. 用 LLM 按提示词生成微信公众号兼容 HTML（纯内联样式）\n3. 通过 WeChat API 或 npm CLI `sync-html` 推送草稿\n\n**⚠️ custom 主题坑点：** `md2wechat --theme custom` 返回的是**通用默认设计提示词**，不是针对文章主题的定制设计。Agent 必须根据文章内容，在 LLM 生成 HTML 时自行注入主题设计意图（配色/风格/氛围）。推荐在生成 HTML 时先保存设计提示词供审查。\n\n**⚠️ HITL 超时处理：** 如果用户 10 分钟内未回复，重新问一次。再次超时则使用默认主题（ocean-calm 🔵 深蓝静谧，适普性最高）并备注"用户未选择，默认使用 ocean-calm"。\n\n### Step 5.6: 选择发布公众号 ⏸️ **HITL #3 — 暂停等待用户**
 
 **这一步必须暂停，让用户选择目标公众号。**
 
@@ -242,10 +257,9 @@ metadata:
 | 公众号C | ccc | `~/.md2wechat/.env.ccc` | 洞剑 |
 | 公众号D | ddd | `~/.md2wechat/.env.ddd` | 剑识 |
 
-**选择后执行：**
-```bash
-source ~/.md2wechat/.env.{abbr}
-```
+**选择后执行：**\n```bash\nsource ~/.md2wechat/.env.{abbr}\n```\n\n**⚠️ HITL 超时处理：** 如果用户 10 分钟内未回复，重新问一次。再次超时则使用上篇文章的公众号（假设不变），并备注"用户未选择，沿用上期公众号"。
+
+**⚠️ env 文件格式坑点**：`.env` 文件使用 `export` 格式，实际变量名为 `WECHAT_APPID_{ABBR}` 和 `WECHAT_SECRET_{ABBR}`（如 `WECHAT_APPID_JDQX`），同时有 `WECHAT_APP_ID` / `WECHAT_APP_SECRET` 作为别名变量（值为 `$WECHAT_APPID_{ABBR}`）。读取时需精确匹配 `export WECHAT_APPID_{ABBR}=` 前缀，避免匹配到别名行。推荐 source 后直接使用环境变量，或按前缀精确匹配。
 
 ### Step 6: 生成 HTML 并发布到草稿
 
@@ -258,6 +272,10 @@ source ~/.md2wechat/.env.{abbr}
 source ~/.md2wechat/.env.{abbr}
 md2wechat convert article_clean.md --mode ai --theme [用户选择的主题] --title "文章标题(≤32字)"
 ```
+
+**⚠️ 标题长度坑点：** `--title` 不超过 **32 个字符**（含空格/符号），否则 md2wechat 返回 `CONVERT_INVALID` 错误。如果原标题超长，截取前 32 字 + 省略号，或只保留核心部分。
+
+**📦 设计提示词归档：** 每次 AI mode 生成后，将设计提示词和 HTML 一起归档到 `design-prompt-<theme>-<topic>.md`，放入产出目录。供后续审查和复用。示例格式见 `references/custom-design-prompt-example.md`。
 
 ```python
 # 2. LLM 按设计提示词生成纯内联样式 HTML（先去 frontmatter）
@@ -342,4 +360,4 @@ WECHAT_APP_ID="$WECHAT_APPID" WECHAT_APP_SECRET=*** \
 ## References（本 skill 内置）
 
 - `references/html-formatting-pitfalls.md` — HTML 排版 5 大坑点及修复方案
-- `references/autumn-warm-design-prompt.md` — autumn-warm 🟠 设计规范
+- `references/custom-design-prompt-example.md` — custom 主题设计提示词示例
