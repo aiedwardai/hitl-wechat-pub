@@ -1,14 +1,14 @@
 ---
 name: hitl-wechat-pub
 description: "Human-in-the-loop controlled WeChat auto publishing skill with manual approval workflow."
-version: 2.1.0
+version: 2.2.0
 author: 16Miku
 license: MIT
 source: https://github.com/16Miku/wechat-auto-publishing (改编自 wechat-auto-publishing-complete)
 metadata:
   hermes:
     tags: [wechat, publishing, automation, hitl, draft]
-    related_skills: [md2wechat-lite, wechat-auto-publishing, source-gathering, gold-backtest]
+    related_skills: [md2wechat-lite, wechat-auto-publishing, source-gathering, gold-backtest, spcx-daily-report]
 ---
 
 # hitl-wechat-pub — Human-in-the-Loop 微信公众号发布
@@ -47,7 +47,8 @@ metadata:
 - `references/writing-style-js.md` — **剑识写作风格**（基于16Miku原版改编，有态度/第一人称/无编号/无CTA）
 - `references/html-formatting-pitfalls.md` — HTML排版坑点与修复方案（已内置）
 - `references/custom-design-prompt-example.md` — custom 主题设计提示词示例（"星际富豪"风格，深空×金色）
-
+- `references/custom-design-prompt-example.md` — custom 主题设计提示词示例（"星际富豪"风格，深空×金色）
+- `references/ocr-vision-workflow.md` — 图片文字识别工作流（tesseract中文效果差，推荐 OpenRouter vision API + gemini-3.5-flash）
 ### Templates
 
 - 风格文件: `~/styles/剑闻.md`, `剑识.md`, `洞剑.md`, `智剑.md`, `远剑.md`
@@ -370,4 +371,4 @@ WECHAT_APP_ID="$WECHAT_APPID" WECHAT_APP_SECRET=*** \
 
 - `references/html-formatting-pitfalls.md` — HTML 排版 5 大坑点及修复方案
 - `references/custom-design-prompt-example.md` — custom 主题设计提示词示例
-- `references/vision-ocr-workflow.md` — 图片→文字→文章的工作流（OpenRouter Vision API 替代 tesseract）
+- `references/ocr-vision-workflow.md` — 图片→文字工作流（OpenRouter Vision API + gemini-3.5-flash 替代 tesseract）
