@@ -8,7 +8,7 @@ source: https://github.com/16Miku/wechat-auto-publishing (改编自 wechat-auto-
 metadata:
   hermes:
     tags: [wechat, publishing, automation, hitl, draft]
-    related_skills: [md2wechat-lite, wechat-auto-publishing, source-gathering]
+    related_skills: [md2wechat-lite, wechat-auto-publishing, source-gathering, gold-backtest]
 ---
 
 # hitl-wechat-pub — Human-in-the-Loop 微信公众号发布
@@ -59,8 +59,17 @@ metadata:
 ### Step 1: 准备环境
 验证运行时依赖、发布脚本依赖链、非敏感配置占位符。
 
-### Step 2: 收集素材
-收集原始素材，过滤并压缩。
+### Step 2: 收集素材（委托 source-gathering skill）
+
+委托 `source-gathering` skill 执行多维素材采集，或复用已有 cron 产出。
+
+**执行方式（二选一）：**
+
+**方式 A：已有当日 cron 产出（推荐，节省 web_search 次数）**
+Cron 产出的数据已覆盖 7+ 维度。检查 `~/.hermes/cron/output/{job_id}/YYYY-MM-DD_18-*.md`。从中提取原始池（8-15 条），按 source-gathering 规范格式输出。
+
+**方式 B：无当日 cron 产出（周日或 cron 故障）**
+加载 `source-gathering` skill，按 7 维度 web_search 手动采集。
 
 **⚠️ 坑点**：必须输出**原始池**（8-15条）再压缩，不能跳过。写文章时依赖素材池文件中的数据，不依赖 Agent 上下文中的 web_search 记忆。
 
@@ -361,3 +370,4 @@ WECHAT_APP_ID="$WECHAT_APPID" WECHAT_APP_SECRET=*** \
 
 - `references/html-formatting-pitfalls.md` — HTML 排版 5 大坑点及修复方案
 - `references/custom-design-prompt-example.md` — custom 主题设计提示词示例
+- `references/vision-ocr-workflow.md` — 图片→文字→文章的工作流（OpenRouter Vision API 替代 tesseract）
